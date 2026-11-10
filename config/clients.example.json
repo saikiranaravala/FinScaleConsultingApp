@@ -1,0 +1,7 @@
+{
+  "_comment": "Copy to clients.json (gitignored — contains confidential client names per NFR-4) and keep in sync with the --lora NAME=PATH flags actually registered on serve_vllm.py (INT-3). adapter must match the registered NAME exactly, or the base model id for general/non-client-specific queries.",
+  "clients": [
+    { "displayName": "Acme Capital", "adapter": "customer_a" },
+    { "displayName": "Base Model (general)", "adapter": "Qwen/Qwen2.5-14B-Instruct" }
+  ]
+}

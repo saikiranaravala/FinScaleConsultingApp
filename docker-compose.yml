@@ -1,0 +1,45 @@
+services:
+  mongodb:
+    container_name: finscale-mongodb
+    image: mongo
+    restart: always
+    command: mongod --noauth
+    volumes:
+      - ./data-node:/data/db
+
+  # Translates between human-readable client names (what consultants pick in the
+  # LibreChat UI) and the real --lora adapter names registered on serve_vllm.py.
+  # See config/clients.example.json and README.md "Onboarding a new client".
+  shim:
+    container_name: finscale-shim
+    build: ./shim
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./config/clients.json:/config/clients.json:ro
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api:
+    container_name: finscale-librechat
+    # Pin to a specific version before production use; see
+    # https://github.com/danny-avila/LibreChat/pkgs/container/librechat
+    image: ghcr.io/danny-avila/librechat:latest
+    ports:
+      - "3080:3080"
+    restart: always
+    depends_on:
+      - mongodb
+      - shim
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - MONGO_URI=mongodb://mongodb:27017/LibreChat
+      - CONFIG_PATH=/app/librechat.yaml
+    volumes:
+      - ./librechat.yaml:/app/librechat.yaml:ro
