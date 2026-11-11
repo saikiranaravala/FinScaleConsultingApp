@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-The LibreChat deployment scaffold exists (Docker Compose, `librechat.yaml`, the adapter-naming shim). LibreChat itself is **not vendored** — it runs from the official `ghcr.io/danny-avila/librechat` image, configured rather than forked. The only first-party code in this repo is `shim/` (plain Node, no dependencies). See [README.md](README.md) for setup/onboarding and its "Known limitations" section for what's not built yet (structured risk-card UI with the NFR-8 disclaimer, FR-9 defensive-parse indicator, per-consultant access control, automated SYSTEM_PROMPT sync).
+The LibreChat deployment scaffold exists (Docker Compose, `librechat.yaml`, the adapter-naming shim), plus a second deployment path for a RunPod Pod with no Docker daemon (`deploy/runpod/`, see [DEPLOY_RUNPOD.md](DEPLOY_RUNPOD.md)) that runs the same pieces as native processes under pm2 instead. LibreChat itself is **not vendored** either way — Docker pulls the official `ghcr.io/danny-avila/librechat` image; the RunPod path `git clone`s LibreChat's own repo into `librechat/` at deploy time (gitignored, never committed here). The only first-party code in this repo is `shim/` (plain Node, no dependencies) and the `deploy/runpod/` bootstrap tooling. See [README.md](README.md) for setup/onboarding and its "Known limitations" section for what's not built yet (structured risk-card UI with the NFR-8 disclaimer, FR-9 defensive-parse indicator, per-consultant access control, automated SYSTEM_PROMPT sync).
 
 ## Commands
 
@@ -15,6 +15,15 @@ docker compose up -d --build      # start mongodb, shim, api (LibreChat on :3080
 docker compose restart shim       # after editing config/clients.json
 docker compose logs -f shim       # shim request log (JSON lines: forward_request, forward_response, errors)
 node --check shim/server.js       # syntax-check the shim (no test suite exists yet)
+
+# Run the shim directly for fast iteration (no Docker, no LibreChat/Mongo needed):
+SHIM_PORT=4000 FINSCALE_VLLM_BASE_URL=http://localhost:8000/v1 \
+  FINSCALE_CLIENTS_CONFIG=./config/clients.json node shim/server.js
+
+# RunPod native deployment (no Docker) — see DEPLOY_RUNPOD.md for full context:
+bash deploy/runpod/bootstrap.sh    # installs Node/Mongo/pm2, clones+builds LibreChat, starts everything
+node --check deploy/runpod/ecosystem.config.js
+bash -n deploy/runpod/bootstrap.sh
 ```
 
 There is no automated test suite yet. When adding one, it should target
@@ -31,6 +40,8 @@ This project is **separate from and must never duplicate** `FinscaleNvidiaPlatfo
 
 - The sibling repo's `scripts/serve_vllm.py` runs a vLLM OpenAI-compatible server (`--enable-lora`) hosting one base model plus N per-customer LoRA adapters. There is no per-customer endpoint — the adapter is selected by setting `"model": "<adapter-name>"` in the chat completion request.
 - This repo must contain **no training, fine-tuning, data-pipeline, or EDGAR-ingestion code**. If a task seems to require any of that, it belongs in `FinscaleNvidiaPlatform` instead.
+
+`shim/server.js` is intentionally zero-dependency plain Node (`http` + built-in `fetch`, no Express, no `npm install` step). It is stateless: `config/clients.json` is re-read from disk on every `/v1/models` and `/v1/chat/completions` request rather than cached, so edits take effect without restarting the shim — but it fails fast (`process.exit(1)`) at startup if that file is missing or malformed, rather than serving an empty model list.
 
 ### Request/response contract (REQUIREMENTS.md §2)
 

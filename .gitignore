@@ -3,3 +3,4 @@ config/clients.json
 data-node/
 node_modules/
 *.log
+librechat/

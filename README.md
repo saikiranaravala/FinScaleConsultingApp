@@ -40,8 +40,16 @@ adapter name before forwarding each `/v1/chat/completions` call to
 
 ## Setup
 
-Prerequisites: Docker + Docker Compose, and a running `serve_vllm.py`
-endpoint somewhere this host can reach privately (NFR-1).
+Two deployment paths, depending on the host:
+
+- **Docker host** (steps below): needs Docker + Docker Compose.
+- **RunPod Pod alongside FinscaleNvidiaPlatform** (no Docker daemon available
+  inside the Pod): see [DEPLOY_RUNPOD.md](DEPLOY_RUNPOD.md) instead — same
+  app, installed as native processes (Node/MongoDB/pm2) and talking to
+  `serve_vllm.py` over loopback on the same Pod.
+
+Prerequisites for the Docker path: Docker + Docker Compose, and a running
+`serve_vllm.py` endpoint somewhere this host can reach privately (NFR-1).
 
 1. `cp .env.example .env` and fill in:
    - `CREDS_KEY` / `CREDS_IV` / `JWT_SECRET` / `JWT_REFRESH_SECRET` (generate with `openssl rand -hex 32`, `CREDS_IV` with `-hex 16`)
